@@ -5,7 +5,6 @@ CREATE TABLE `student` (
   `name` varchar(255) NOT NULL,
   `email` varchar(255) NOT NULL,
   `contact` varchar(255) NOT NULL,
-  `password` varchar(255) NOT NULL,
   `course_id` int(11) NOT NULL,
   PRIMARY KEY(`roll`),
   foreign key(`course_id`) references `course`(`id`)
@@ -16,6 +15,14 @@ INSERT INTO `student` (`id`, `roll`, `name`, `email`, `contact`, `password` ,`co
 (),
 ();
 
+CREATE TABLE `studentPassword` (
+  `id` int(11) NOT NULL,
+  `roll` varchar(11) NOT NULL
+  `password` varchar(255) NOT NULL,
+  PRIMARY KEY(`id`),
+  FOREIGN KEY(`roll`) REFERENCES `student`(`roll`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
 CREATE TABLE `teacher` (
   `id` int(11) NOT NULL,
@@ -25,6 +32,14 @@ CREATE TABLE `teacher` (
   `contact` varchar(255) NOT NULL,
   `password` varchar(255) NOT NULL,
   PRIMARY KEY(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `teacherPassword` (
+  `id` int(11) NOT NULL,
+  `teacher_id` varchar(11) NOT NULL
+  `password` varchar(255) NOT NULL,
+  PRIMARY KEY(`id`),
+  FOREIGN KEY(`teacher_id`) REFERENCES `teacher`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 

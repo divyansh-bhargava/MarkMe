@@ -1,5 +1,6 @@
 const express = require("express")
 const app = express()
+const cookieParser = require("")
 
 require("dotenv").config()
 
@@ -11,6 +12,7 @@ const admin = require("./routes/admin")
 const port = process.env.PORT || 3000
 
 app.use(express.json())
+app.use(cookieParser())
 
 app.use("/api/v1/student", student);
 app.use("/api/v1/teacher",  teacher);

@@ -1,4 +1,149 @@
 const db = require('../config/database')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+
+exports.teacherSignUp = async (req, res) => {
+    console.log('inside controller - signup');
+
+    const { email, password, confirmPassword, otp } = req.body
+
+    if (!email || !password || !confirmPassword || !otp) {
+        return res.status(400).json({
+            success: false,
+            message: "All fields are required"
+        })
+    }
+
+    if (password !== confirmPassword) {
+        return res.status(400).json({
+            success: false,
+            message: "Password and confirm password should be same"
+        })
+    }
+
+    let data;
+
+    db.query(`select * from teacher where email= ? `, email, async (err, res) => {
+        if (res) {
+            [data] = res
+        }
+        else {
+            return res.status(203).json({
+                success: false,
+                message: "you are not register in college database"
+            })
+        }
+    })
+
+    db.query(`SELECT * FROM teacherPassword where teacher_id = ?`, data.id , async (err, response) => {
+
+        if (response.length > 0) {
+            return res.status(203).json({
+                success: false,
+                message: "User is already registered."
+            })
+        }
+        else {
+
+            const hashedPwd = await bcrypt.hash(password, 10);
+
+            db.query(`INSERT INTO teacherPassword SET ?`, { teacher_id: data.id, password: hashedPwd }, async (err, response) => {
+
+                if (response) {
+                    console.log("Res: ", response);
+
+                    const payload = {
+                        email: data.email,
+                        id: data.id,
+                        accountType: teacher
+                    }
+
+                    const token = jwt.sign(payload, process.env.JWT_SECRET_KEY, { expiresIn: '5h' })
+
+                    data.token = token
+
+                    const option = {
+                        expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+                        httponly: true
+                    }
+
+                    res.cookie("token", token, option).status(200).json({
+                        success: true,
+                        data: data,
+                        message: "Student Signup succesfully"
+                    })
+
+
+                }
+                else {
+                    return res.status(203).json({
+                        success: false,
+                        message: "error in signup",
+                        data: err
+                    })
+                }
+
+
+
+            });
+
+        }
+    })
+}
+
+
+exports.teacherSignIn = async (req, res) => {
+
+    console.log("Inside Controller - login")
+
+    const { email, password } = req.body;
+
+    db.query('SELECT * FROM teacher WHERE email = ? AND teacher.id = teacherPassword.id', email, async (err, response) => {
+        
+        console.log("Response : ", response);
+
+        if (response.length > 0) {
+
+            const pwdCheck = await bcrypt.compare(password, response[0].password)
+
+            if (pwdCheck) {
+
+                const payload = {
+                        email: response[0].email,
+                        id: response[0].id,
+                        accountType: teacher
+                    }
+
+                    const token = jwt.sign(payload, process.env.JWT_SECRET_KEY, { expiresIn: '5h' })
+
+                    response[0].token = token
+
+                    const option = {
+                        expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+                        httponly: true
+                    }
+
+                    res.cookie("token", token, option).status(200).json({
+                        success: true,
+                        data: response[0],
+                        message: "teacher Signin succesfully"
+                    })
+            }
+            else {
+                return res.status(400).json({
+                success: false,
+                message: " password does not match "
+            })
+            }
+        }
+        else {
+            return res.status(400).json({
+                success: false,
+                message: "err in signin"
+            })
+        }
+    })
+}
 
 exports.getSubjByCourse = async (req, res) => {
 
