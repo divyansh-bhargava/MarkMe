@@ -76,6 +76,17 @@ CREATE TABLE `attendance` (
   foreign key(`teacher_id`) references `teacher`(`id`),
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE `otp_table`(
+  `id` int(11) NOT NULL,
+  'email' varchar(16) NOT NULL,
+  'otp' int(6) NOT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `expires_at` DATETIME NOT NULL,
+  PRIMARY KEY(`id`),
+);
+
+
+
 INSERT INTO `attendance` (`id`, `roll`, `year`, `semester`, `subject`, `date`, `status`) VALUES
 (35, 'B200032CS', 2, 3, 'CS12010', '2022-10-09', 'present'),
 

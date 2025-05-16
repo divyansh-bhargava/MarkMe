@@ -1,8 +1,73 @@
 const db = require("../config/database.js")
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const otpGenerator = require('otp-generator')
+const mail = require("../config/mailsender.js")
 
 require('dotenv').config()
+
+exports.sendOtp = async (req, res) => {
+    console.log("Inside Controller - send otp");
+
+    const { email } = req.body
+
+    if (!email) {
+        return res.status(400).json({
+            success: false,
+            message: "email is required"
+        })
+    }
+
+    db.query(`select * from student , studentPassword where email = ? and student.roll = studentPassword.roll `, email , async ( err , response) => {
+        if(response){
+            return res.status(203).json({
+                success: false,
+                message: "user is already registered",
+                data: response
+            })
+        }
+    })
+
+    let otp = otpGenerator.generate(6, {
+        lowerCaseAlphabets: false,
+        upperCaseAlphabets: false,
+        specialChars: false
+    });
+
+    let result = await db.query(`select * from otp_table where otp = ? `, otp)
+
+    while (result) {
+        otp = otpGenerator.generate(6, {
+            lowerCaseAlphabets: false,
+            upperCaseAlphabets: false,
+            specialChars: false
+        });
+
+        result = await db.query(`select * from otp_table where otp = ? `, otp)
+    }
+
+    db.query(`insert into otp_table set ?`, { email: email, otp: otp }, async (err, response) => {
+
+        if (response) {
+            console.log("Res: ", response);
+
+            await mail(response[0].email, "otp for signup", `<h1>otp ${response[0].email}</h1>`)
+
+            console.log(`email sent succesfully at ${this.email}`)
+
+        }
+        else {
+            return res.status(203).json({
+                success: false,
+                message: "error in sending otp",
+                data: err
+            })
+        }
+    })
+
+}
+
+
 
 exports.studentSignUp = async (req, res) => {
     console.log('inside controller - signup');
@@ -46,6 +111,17 @@ exports.studentSignUp = async (req, res) => {
             })
         }
         else {
+
+            const [validOtps] = await db.execute(
+               `SELECT * FROM otp_codes 
+                WHERE email = ? AND otp_code = ?  AND expires_at > NOW()
+                ORDER BY created_at DESC LIMIT 1`,
+                [email, otp]
+            );
+
+            if (!validOtps) {
+                return res.status(401).json({ message: 'Invalid or expired OTP.' });
+            }
 
             const hashedPwd = await bcrypt.hash(password, 10);
 
@@ -101,7 +177,7 @@ exports.studentSignIn = async (req, res) => {
     const { email, password } = req.body;
 
     db.query('SELECT * FROM student WHERE email = ? AND student.roll = studentPassword.roll', email, async (err, response) => {
-        
+
         console.log("Response : ", response);
 
         if (response.length > 0) {
@@ -111,31 +187,31 @@ exports.studentSignIn = async (req, res) => {
             if (pwdCheck) {
 
                 const payload = {
-                        email: response[0].email,
-                        roll: response[0].roll,
-                        accountType: student
-                    }
+                    email: response[0].email,
+                    roll: response[0].roll,
+                    accountType: student
+                }
 
-                    const token = jwt.sign(payload, process.env.JWT_SECRET_KEY, { expiresIn: '5h' })
+                const token = jwt.sign(payload, process.env.JWT_SECRET_KEY, { expiresIn: '5h' })
 
-                    response[0].token = token
+                response[0].token = token
 
-                    const option = {
-                        expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-                        httponly: true
-                    }
+                const option = {
+                    expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+                    httponly: true
+                }
 
-                    res.cookie("token", token, option).status(200).json({
-                        success: true,
-                        data: response[0],
-                        message: "Student Signin succesfully"
-                    })
+                res.cookie("token", token, option).status(200).json({
+                    success: true,
+                    data: response[0],
+                    message: "Student Signin succesfully"
+                })
             }
             else {
                 return res.status(400).json({
-                success: false,
-                message: " password does not match "
-            })
+                    success: false,
+                    message: " password does not match "
+                })
             }
         }
         else {
